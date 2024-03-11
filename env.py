@@ -12,8 +12,8 @@ class MultiAgentEnv(gym.Env):
         self.num_states = gym.spaces.Discrete(4)
         self.action_space = gym.spaces.Discrete(2)
     
-    def reward(self, pred):
-        return pred == self.y
+    def reward(self, predictions):
+        return [1 if pred == true_value else 0 for pred, true_value in zip(predictions, self.y)]
     
     def action(self, position):
         if position == 3:
