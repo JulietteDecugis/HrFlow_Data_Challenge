@@ -2,14 +2,16 @@ import torch
 import gymnasium as gym 
 import numpy as np
 
-class DQNEnv(gym.Env):
-    def __init__(self, Emb, EmbS, y):
-        super(DQNEnv, self).__init__()
+class New_env(gym.Env):
+    def __init__(self, Emb, y):
+        super(New_env, self).__init__()
         self.Emb = Emb
-        self.EmbS = EmbS
         self.y = y
-        #self.num_agents = self.Emb.shape[0]
         self.state = torch.zeros(1)
+        self.index = 0 
+        self.individual_emb = self.Emb[self.index]
+        self.individual_target = self.y[self.index]
+        self.individual_emb_state= torch.cat([self.individual_emb, self.state])
         self.num_states = gym.spaces.Discrete(4)
         self.action_space = gym.spaces.Discrete(2)
     
@@ -22,33 +24,45 @@ class DQNEnv(gym.Env):
         else:
             return torch.Tensor([0, 1])
     
-    def sample_action(self):
-        return torch.Tensor(torch.randint(0, self.state.shape[0], size = (1,)).item())
+    def sample_action(self): 
+        action = self.action(self.state)
+        return torch.Tensor(torch.randint(0, action.shape[0], size=(1,)))
     
     def transition(self, state, action):
         state += action
         return state
     
     def step(self, action):
-        # tuple(observation, reward, terminated, trunc = False, info = {},)
-        observation = self.transition(self.state, action)
-        reward = self.reward()
-        terminated_n = observation_n == 3
-        return (observation_n, reward_n, terminated_n, {})
+        predicted_next_position = self.transition(self.state, action)
+        predicted_next_emb_state = torch.cat([self.individual_emb, predicted_next_position ])
+        reward = self.calculate_reward(predicted_next_position)
+        terminated_n = predicted_next_position == 3
+        return (predicted_next_position, predicted_next_emb_state, reward, terminated_n, {})
     
-    def reset(self):
-        random_index = torch.randint(0, self.Emb.shape[0], (1,)).item()
-        self.emb_selected = 
-        self.state = torch.zeros(self.num_agents)
-        return (self.state, {})
-    def calculate_reward(true_next_position, predicted_next_position, current_position):
- 
+    def reset(self, first_emb):
+        if first_emb:
+            self.index =0
+        else :
+            self.index +=1
+        self.state = torch.zeros(1)
+        self.individual_emb = self.Emb[self.index]
+        self.state = torch.zeros(1)
+        self.individual_emb_state = torch.cat([self.individual_emb, self.state])
+        return (self.individual_emb_state, {})
+    
+    def calculate_reward(self, predicted_next_position):
+        true_next_position = self.y[self.index]
+        current_position = self.state
+        #print("true label",true_next_position )
+        #print("predicted",predicted_next_position)
+        #print("current", current_position)
+
     
         # Récompenses et pénalités
-        correct_prediction_reward = 10
-        ambitious_prediction_reward = 5
-        correct_stay_reward = 10
-        wrong_prediction_penalty = -10
+        correct_prediction_reward = 1
+        ambitious_prediction_reward = .5
+        correct_stay_reward = 1
+        wrong_prediction_penalty = -1
 
         if predicted_next_position == true_next_position:
             # Récompense pour une prédiction correcte de progression ou de non-progression
