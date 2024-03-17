@@ -63,16 +63,28 @@ class New_env(gym.Env):
         ambitious_prediction_reward = .5
         correct_stay_reward = 1
         wrong_prediction_penalty = -1
+        '''
+        if true_next_position>predicted_next_position:
+            return 1/(true_next_position.item()-predicted_next_position.item()+1)
+        elif true_next_position<predicted_next_position:
+            return 0
+        elif true_next_position==predicted_next_position:
+            return 1
 
+
+        '''
         if predicted_next_position == true_next_position:
             # Récompense pour une prédiction correcte de progression ou de non-progression
             return correct_prediction_reward
         elif predicted_next_position > current_position and predicted_next_position < true_next_position:
             # Récompense pour une prédiction ambitieuse mais plausible
             return ambitious_prediction_reward
+        elif predicted_next_position < true_next_position and predicted_next_position == current_position:
+            return -0.5
         elif predicted_next_position == current_position and current_position == true_next_position:
             # Récompense pour une prédiction correcte de rester dans le poste actuel
             return correct_stay_reward
         else:
             # Pénalité pour une prédiction incorrecte
             return wrong_prediction_penalty
+        
