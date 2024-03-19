@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
+from DL_models import LSTM, MLP, Transformer
 
 class CLIP_Model(nn.Module):
     def __init__(self, emb1_size, emb2_size, h1_sizes = [32], h2_sizes = [32], type = 'MLP'):
