@@ -74,7 +74,9 @@ class LSTM(nn.Module):
 class FusionModel(nn.Module):
     def __init__(self, input_size, num_layers, projected_size, hidden_size):
         super(FusionModel, self).__init__()
-        self.text1 = LSTM(projected_size, input_size, hidden_size, num_layers)
+        self.text1 = Transformer(1, linear_size = hidden_size, d_model = input_size, 
+                                 num_layers = num_layers,
+                                 nhead = 4, classification_head=False)
         self.text2 = LSTM(projected_size, input_size, hidden_size, num_layers)
         self.w1 = nn.Parameter(torch.ones(projected_size, projected_size))
         self.w2 = nn.Parameter(torch.ones(projected_size, projected_size))
@@ -84,8 +86,8 @@ class FusionModel(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        emb1 = self.text1(x[:, :, 0].unsqueeze(1))
-        emb2 = self.text2(x[:, :, 1].unsqueeze(1))
+        emb1 = self.text1(x[:, :32])
+        emb2 = self.text2(x[:, 32:].unsqueeze(1))
         emb = emb1 @ self.w1 + emb2 @ self.w2
         # emb = emb / torch.norm(emb, dim = 1)
         emb = self.dropout(emb)
@@ -94,11 +96,19 @@ class FusionModel(nn.Module):
         return self.fc2(emb)
 
 class Transformer(nn.Module):
-    def __init__(self, linear_size, d_model, nhead=10):
+    def __init__(self, num_classes, linear_size, d_model, num_layers = 1, nhead=10, classification_head=True):
         super().__init__()
         self.transformer = nn.Sequential(
-            nn.TransformerEncoder(nn.TransformerEncoderLayer(dim_feedforward = linear_size, d_model=d_model, nhead=nhead), num_layers=1),
+            nn.TransformerEncoder(nn.TransformerEncoderLayer(dim_feedforward = linear_size, d_model=d_model, nhead=nhead), num_layers=num_layers),
         )
+        self.classification_head = classification_head
+        if classification_head:
+            self.fc = nn.Linear(d_model, num_classes)
 
     def forward(self, x):
-        return self.transformer(x.unsqueeze(0)).squeeze(0)
+        x = self.transformer(x.unsqueeze(0)).squeeze(0)
+        if not self.classification_head:
+            return x
+        else:
+            x = self.fc(x)
+            return x
