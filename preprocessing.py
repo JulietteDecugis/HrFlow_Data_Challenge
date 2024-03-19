@@ -62,6 +62,25 @@ def dataframe_to_tensor(X, y, encoded=True):
         return combined_tensor, y
     y = torch.tensor(y)
     return combined_tensor, y
+def split_tensors(data_tensor, target_tensor, validation_split=0.2):
+
+    # Total size
+    total_size = data_tensor.shape[0]
+    
+    # Validation size
+    val_size = int(total_size * validation_split)
+    
+    # Indices to permute
+    indices = torch.randperm(total_size)
+    
+
+    train_indices, val_indices = indices[val_size:], indices[:val_size]
+    
+
+    train_data, train_target = data_tensor[train_indices], target_tensor[train_indices]
+    val_data, val_target = data_tensor[val_indices], target_tensor[val_indices]
+    
+    return train_data, train_target, val_data, val_target
 
 def embeddings_reduced_PCA(X, reduced_length):
     '''

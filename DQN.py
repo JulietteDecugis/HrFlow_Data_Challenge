@@ -16,6 +16,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt 
 import seaborn as sns 
 import random
+from preprocessing import get_data, dataframe_to_tensor, split_tensors
+from torch.utils.data import DataLoader, random_split
+
 
 
 class ReplayBuffer:
@@ -73,7 +76,9 @@ class dqn_agent:
             #print(QYmax.shape)
             #update = torch.addcmul(R, self.gamma, 1-D, QYmax)
             update = torch.addcmul(R, 1-D, QYmax, value=self.gamma)
-            QXA = self.model(X).gather(1, A.to(torch.long))
+            #print("X", X.shape)
+            #print("A", A.shape)
+            QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1))
             loss = self.criterion(QXA, update.unsqueeze(1))
             self.optimizer.zero_grad()
             loss.backward()
@@ -137,17 +142,15 @@ class dqn_agent:
         return episode_return
     
     import gymnasium as gym
-#cartpole = gym.make('CartPole-v1', render_mode="rgb_array")
-import torch
-import torch.nn as nn
-import matplotlib.pyplot as plt
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Declare network
 
-state_dim = 39
+state_dim = 65
 n_action = 2
-nb_neurons=64
+nb_neurons=128
 DQN = torch.nn.Sequential(nn.Linear(state_dim, nb_neurons),
                           nn.ReLU(),
                           nn.Linear(nb_neurons, nb_neurons),
@@ -163,10 +166,47 @@ config = {'nb_actions': 2,
           'epsilon_max': 1,
           'epsilon_decay_period': 1000,
           'epsilon_delay_decay': 20,
-          'batch_size': 20}
+          'batch_size': 64}
 
 # Train agent
-agent = dqn_agent(config, DQN.double(), replay_buffer)
-env = New_env(torch.tensor(X_undersampled, dtype=torch.float64), torch.tensor(y_undersampled, dtype=torch.float64))
-scores = agent.train(env, 50000)
-plt.plot(scores)
+agent = dqn_agent(config, DQN.double())
+path_to_X = "/Users/louisedurand-janin/Documents/GitHub/HrFlow_Data_Challenge/data/X_train.csv"
+path_to_y = "/Users/louisedurand-janin/Documents/GitHub/HrFlow_Data_Challenge/data/y_train.csv"
+X, y = get_data(path_to_X, path_to_y)
+X, y = dataframe_to_tensor(X,y)
+X_train, y_train, X_validation, y_validation = split_tensors(X,y)
+print("Training set size ", X_train.shape[0])
+print("Validation set size", X_validation.shape[0])
+env = Env(X_train, y_train)
+scores = agent.train(env, X_train.shape[0])
+#plt.plot(scores)
+# Evaluate on VAlIDATION
+career_env_validation = Env(X_validation, y_validation)
+pred=[]
+y_pred = []
+s,_ =  career_env_validation.reset(True)
+i=0
+for t in tqdm(range(len(y_validation))):
+    for k in range(5):
+        a = greedy_action(agent.model,s)
+
+        predicted_next_position, predicted_next_emb_state, reward, d, _ = career_env_validation.step(a)
+
+        s = predicted_next_emb_state
+        if t in [0,1,2,3]:
+            print("action chosen", a)
+
+            print("s", predicted_next_position)
+            print("target", y_validation[i])
+        #if a ==0:
+         #   break
+        
+        if d:
+            break
+    i+=1
+    pred.append(s)
+    y_pred.append(predicted_next_position.item())
+    s,_=career_env_validation.reset(False)
+print(f1_score(y_pred, np.array(y_validation), average='macro'))
+with open('predictions_list.json', 'w') as file:
+    json.dump(y_pred, file)
