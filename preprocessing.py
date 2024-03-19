@@ -1,15 +1,13 @@
 import numpy as np
 import torch
-from tqdm import tqdm
 import pandas as pd
-import random
 import json
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.utils import shuffle
 from imblearn.under_sampling import NearMiss
 from imblearn.over_sampling import RandomOverSampler
-from torch import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader
 
 def get_dataloaders(X, y, batch_size=None):
     dataset = TensorDataset(X, y)
