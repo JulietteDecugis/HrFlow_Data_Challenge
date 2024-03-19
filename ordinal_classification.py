@@ -14,16 +14,14 @@ class Ordinal_Classifier:
 
     Args:
         num_classifiers (int): number of probability classifiers, should be equal to number of ordinal classes - 1
-        num_features (int): number of input features for each data point
         criterion (list): list of loss functions for each classifier (Pytorch nn.Module)
         epochs: number of epochs to train each classifier at initialization
         params (list): list of parameter dict for each classifier 
     """
 
-    def __init__(self, num_classifiers, num_features, criterions, epochs, params):
+    def __init__(self, num_classifiers, criterions, epochs, params):
         self.epochs = epochs
         self.num_classifiers = num_classifiers
-        self.num_features = num_features
         self.classifiers = [Proba_Classifier(params[i], criterions[i]) for i in range(self.num_classifiers)]
     
     def initialize(self, dataloaders):
@@ -31,7 +29,7 @@ class Ordinal_Classifier:
         Args:
             dataloaders: list of torch.Dataloaders with training X and y
         '''
-        for i in range(len(self.num_classifiers)):
+        for i in range(self.num_classifiers):
             classifier = self.classifiers[i]
             dataloader = dataloaders[i]
             classifier.train(dataloader, num_epochs=self.epochs[i], num=i)      
@@ -44,10 +42,11 @@ class Ordinal_Classifier:
 
         assert(self.num_classifiers > 0)
         scores = []
+        x = x.float()
         p_g0_1, p_class0 = torch.sigmoid(self.classifiers[0].model(x))
         prev_class_positive = p_g0_1
         scores.append(p_class0.item())
-        for i in range(1, len(self.num_classifiers-1)):
+        for i in range(1, self.num_classifiers-1):
             p_gi_1, current_negative = torch.sigmoid(self.classifiers[i].model(x))
             p_class_i = prev_class_positive * current_negative
             prev_class_positive = p_gi_1
@@ -55,10 +54,10 @@ class Ordinal_Classifier:
         
         # for exmaple: P(class = 4) = P(class > 3)
         if self.num_classifiers > 1:
-            scores.append(prev_class_positive)
+            scores.append(prev_class_positive.item())
         
         # return most probable class:
-        return np.argamx(scores)
+        return np.argmax(scores)
     
 class Proba_Classifier():
     def __init__(self, params, criterion):
@@ -95,6 +94,7 @@ class Proba_Classifier():
     
     def prediction(self, X):
         self.model.eval()
+        X = X.float()
         if self.type == 'LSTM' and len(X.shape) < 3:
             X = X.reshape(X.shape[0], 1, X.shape[1])
         with torch.no_grad():
@@ -103,19 +103,23 @@ class Proba_Classifier():
             max_prob, y_pred = max_object[0], max_object[1]
         return max_prob, y_pred
 
-def get_params(**params):
+def get_params(params, num_models):
     default_params = {'num_classes': 2,
               'hidden_size': 12,
-              'input_size': 32,
+              'input_size': 64,
               'num_layers': 2,
               'n_head': 4,
-              'type': 'Transformer'}
-    for item in params.keys():
-        default_params[item] = params[item]
+              'type': 'Transformer',
+              'lr': 1e-3}
+    if params is not None:
+        for item in params.keys():
+            default_params[item] = params[item]
+
     loss_g0 = FocalLoss(alpha = 0.3, gamma = 0)
     loss_g1 = FocalLoss(alpha = 0.7, gamma = 0)
     loss_g2 = FocalLoss(alpha = -1, gamma=0)
     criterions = [loss_g0, loss_g1, loss_g2]
+    params = [default_params for _ in range(num_models)]
     return params, criterions
 
 def processing(X, y):
@@ -126,8 +130,6 @@ def processing(X, y):
         3: 1,
     }
     dataloaders = []
-    data_X = X
-
     # generate binary labels
     for i in range(3):
         encoding_map[i] = 0
@@ -146,10 +148,9 @@ if __name__ == "__main__":
     dataloaders = processing(X_train, y_train)
 
     # create loss functions & architecture parameters
-    params, criterions = get_params()
     num_models = 3
-    hidden_size = 64
-    ensemble_model = Ordinal_Classifier(num_models, hidden_size, params=params, epochs=[20, 20, 20], criterions=criterions)
+    params, criterions = get_params(None, num_models)
+    ensemble_model = Ordinal_Classifier(num_models, params=params, epochs=[1, 1, 1], criterions=criterions)
     
     # train all models
     ensemble_model.initialize(dataloaders)
@@ -158,6 +159,6 @@ if __name__ == "__main__":
     y_val_pred = []
     for i in range(X_val.shape[0]):
         val = X_val[i, :]
-        pred = ensemble_model.select_arm(val)
+        pred = ensemble_model.get_scores(val)
         y_val_pred.append(pred)
     print('Validation F1 score:', f1_score(y_val, y_val_pred, average = 'macro'))
