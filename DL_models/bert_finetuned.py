@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-from Fusion_Model import Transformer, FusionModel
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import BertModel, BertConfig
-from CenterLoss import FocalLoss, CenterLoss
 from tqdm import tqdm
-from sklearn.metrics import f1_score
+from loss_functions import CenterLoss
+from preprocessing import get_dataloaders
 
 class Fine_Tuned_Bert(nn.Module):
     def __init__(self, input_size, num_classes):
@@ -25,14 +24,6 @@ class Fine_Tuned_Bert(nn.Module):
         x = self.fc(x)
         # x = self.softmax(x)
         return x
-    
-def get_dataloaders(X, y, batch_size=None):
-    dataset = TensorDataset(X, y)
-    if batch_size is None:
-        dataloader = DataLoader(dataset, batch_size=X.shape[0], shuffle=True)
-    else:
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    return dataloader
 
 def train(NUM_EPOCHS, dataloader, model, test_data):
     criterion = CenterLoss(4, 64)
