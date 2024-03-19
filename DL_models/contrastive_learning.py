@@ -34,15 +34,14 @@ class CLIP_Model(nn.Module):
 class FusionModel(nn.Module):
     def __init__(self, input_size, num_layers, projected_size, hidden_size):
         super(FusionModel, self).__init__()
-        self.text1 = Transformer(1, linear_size = hidden_size, d_model = input_size, 
+        self.text1 = Transformer(projected_size, linear_size = hidden_size, d_model = input_size, 
                                  num_layers = num_layers,
-                                 nhead = 4, classification_head=False)
+                                 nhead = 4, classification_head=True)
         self.text2 = LSTM(projected_size, input_size, hidden_size, num_layers)
         self.w1 = nn.Parameter(torch.ones(projected_size, projected_size))
         self.w2 = nn.Parameter(torch.ones(projected_size, projected_size))
+        self.fc = nn.Linear(projected_size, projected_size)
         self.dropout = nn.Dropout()
-        self.fc1 = nn.Linear(projected_size, 2*projected_size)
-        self.fc2 = nn.Linear(2*projected_size, projected_size)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -52,5 +51,4 @@ class FusionModel(nn.Module):
         # emb = emb / torch.norm(emb, dim = 1)
         emb = self.dropout(emb)
         emb = self.relu(emb)
-        emb = self.relu(self.fc1(emb))
-        return self.fc2(emb)
+        return self.fc(emb)
