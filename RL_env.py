@@ -2,9 +2,9 @@ import torch
 import gymnasium as gym 
 import numpy as np
 
-class New_env(gym.Env):
+class Env(gym.Env):
     def __init__(self, Emb, y):
-        super(New_env, self).__init__()
+        super(Env, self).__init__()
         self.Emb = Emb
         self.y = y
         self.state = torch.zeros(1)
@@ -53,38 +53,25 @@ class New_env(gym.Env):
     def calculate_reward(self, predicted_next_position):
         true_next_position = self.y[self.index]
         current_position = self.state
-        #print("true label",true_next_position )
-        #print("predicted",predicted_next_position)
-        #print("current", current_position)
+
 
     
-        # Récompenses et pénalités
+        # Reward and penalties
         correct_prediction_reward = 1
         ambitious_prediction_reward = .5
         correct_stay_reward = 1
         wrong_prediction_penalty = -1
-        '''
-        if true_next_position>predicted_next_position:
-            return 1/(true_next_position.item()-predicted_next_position.item()+1)
-        elif true_next_position<predicted_next_position:
-            return 0
-        elif true_next_position==predicted_next_position:
-            return 1
 
-
-        '''
         if predicted_next_position == true_next_position:
-            # Récompense pour une prédiction correcte de progression ou de non-progression
+            # Reward for correct prediction of progression or non-progression
             return correct_prediction_reward
         elif predicted_next_position > current_position and predicted_next_position < true_next_position:
-            # Récompense pour une prédiction ambitieuse mais plausible
+            # Reward for an ambitious but plausible prediction
             return ambitious_prediction_reward
         elif predicted_next_position < true_next_position and predicted_next_position == current_position:
             return -0.5
-        elif predicted_next_position == current_position and current_position == true_next_position:
-            # Récompense pour une prédiction correcte de rester dans le poste actuel
-            return correct_stay_reward
+
         else:
-            # Pénalité pour une prédiction incorrecte
+            # Penalty for incorrect prediction
             return wrong_prediction_penalty
         
