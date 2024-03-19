@@ -9,6 +9,7 @@ from sklearn.decomposition import PCA
 from sklearn.utils import shuffle
 from imblearn.under_sampling import NearMiss
 from imblearn.over_sampling import RandomOverSampler
+from torch import TensorDataset, DataLoader
 
 def get_dataloaders(X, y, batch_size=None):
     dataset = TensorDataset(X, y)
