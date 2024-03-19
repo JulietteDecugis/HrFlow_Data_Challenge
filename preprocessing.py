@@ -10,6 +10,14 @@ from sklearn.utils import shuffle
 from imblearn.under_sampling import NearMiss
 from imblearn.over_sampling import RandomOverSampler
 
+def get_dataloaders(X, y, batch_size=None):
+    dataset = TensorDataset(X, y)
+    if batch_size is None:
+        dataloader = DataLoader(dataset, batch_size=X.shape[0], shuffle=True)
+    else:
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    return dataloader
+
 def get_data(path_to_X, path_to_y):
     '''
     Function that takes the paths to X and y 
